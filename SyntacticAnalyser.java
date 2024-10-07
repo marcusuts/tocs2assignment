@@ -11,6 +11,94 @@ public class SyntacticAnalyser {
     private static int currentIndex = 0;
     private static Token currentToken;
 
+    // Define the LL(1) parse table
+    private static final Map<String, String[]> parseTable = new HashMap<>();
+
+    static {
+        parseTable.put("prog", new String[]{
+            "PUBLIC", "CLASS", "ID", "LBRACE", "PUBLIC", "STATIC", "VOID", "MAIN",
+            "LPAREN", "STRINGARR", "ARGS", "RPAREN", "LBRACE", "los", "RBRACE", "RBRACE"
+        });
+        parseTable.put("los", new String[]{
+            "stat", "los", "epsilon" // Allows for multiple statements
+        });
+        parseTable.put("stat", new String[]{
+            "decl", "assign", "print", "ifstat", "whilestat", "forstat", "epsilon"
+        });
+        parseTable.put("whilestat", new String[]{
+            "WHILE", "LPAREN", "boolexpr", "RPAREN", "LBRACE", "los", "RBRACE"
+        });
+        parseTable.put("forstat", new String[]{
+            "FOR", "LPAREN", "forstart", "SEMICOLON", "boolexpr", "SEMICOLON", "forarith", "RPAREN", "LBRACE", "los", "RBRACE"
+        });
+        parseTable.put("forstart", new String[]{
+            "decl", "assign"
+        });
+        parseTable.put("forarith", new String[]{
+            "arithexpr"
+        });
+        parseTable.put("ifstat", new String[]{
+            "IF", "LPAREN", "boolexpr", "RPAREN", "LBRACE", "los", "RBRACE", "elseifstat"
+        });
+        parseTable.put("elseifstat", new String[]{
+            "elseorelseif"
+        });
+        parseTable.put("elseorelseif", new String[]{
+            "ELSE", "possif"
+        });
+        parseTable.put("possif", new String[]{
+            "IF", "LPAREN", "boolexpr", "RPAREN", "LBRACE", "los", "RBRACE"
+        });
+        parseTable.put("assign", new String[]{
+            "ID", "ASSIGN", "expr", "SEMICOLON"
+        });
+        parseTable.put("decl", new String[]{
+            "type", "ID", "possassign", "SEMICOLON"
+        });
+        parseTable.put("possassign", new String[]{
+            "ASSIGN", "expr", "epsilon" // "assign"
+        });
+        parseTable.put("print", new String[]{
+            "PRINT", "LPAREN", "printexpr", "RPAREN", "SEMICOLON"
+        });
+        parseTable.put("type", new String[]{
+            "TYPE"
+        });
+        parseTable.put("expr", new String[]{
+            "relexpr"
+        });
+        parseTable.put("boolexpr", new String[]{
+            "boolop", "relexpr"
+        });
+        parseTable.put("relexpr", new String[]{
+            "arithexpr", "relexprprime"
+        });
+        parseTable.put("relexprprime", new String[]{
+            "relop", "arithexpr"
+        });
+        parseTable.put("relop", new String[]{
+            "EQUAL"
+        });
+        parseTable.put("arithexpr", new String[]{
+            "term", "arithexprprime"
+        });
+        parseTable.put("arithexprprime", new String[]{
+            "PLUS", "MINUS", "term", "arithexprprime"
+        });
+        parseTable.put("term", new String[]{
+            "factor", "termprime"
+        });
+        parseTable.put("termprime", new String[]{
+            "TIMES", "DIVIDE", "MOD", "factor", "termprime"
+        });
+        parseTable.put("factor", new String[]{
+            "LPAREN", "arithexpr", "RPAREN", "ID", "NUM"
+        });
+        parseTable.put("printexpr", new String[]{
+            "relexpr", "STRINGLIT"
+        });
+    }
+
     public static ParseTree parse(List<Token> inputTokens) throws SyntaxException {
         tokens = inputTokens;
         currentIndex = 0;
@@ -22,8 +110,18 @@ public class SyntacticAnalyser {
         while (!parseStack.isEmpty()) {
             Pair<String, TreeNode> top = parseStack.pop();
             String symbol = top.fst();
+            System.out.println(symbol);
+
             if (isNonTerminal(symbol)) {
-                applyRule(symbol, root);
+                // Check the parse table for the production rule
+                String[] productionRule = parseTable.get(symbol);
+                if (productionRule != null) {
+                    for (int i = productionRule.length - 1; i >= 0; i--) {
+                        parseStack.push(new Pair<>(productionRule[i], top.snd()));
+                    }
+                } else {
+                    throw new SyntaxException("No production found for non-terminal: " + symbol);
+                }
             } else {
                 matchTerminal(symbol);
             }
@@ -32,216 +130,8 @@ public class SyntacticAnalyser {
     }
 
     private static boolean isNonTerminal(String symbol) {
-        return Arrays.asList("prog", "los", "stat", "whilestat", "forstat", "forstart", "forarith", 
-                             "ifstat", "elseifstat", "elseorelseif", "possif", "assign", "decl", 
-                             "possassign", "print", "type", "expr", "boolexpr", "boolop", "booleq", 
-                             "boollog", "relexpr", "relexprprime", "relop", "arithexpr", 
-                             "arithexprprime", "term", "termprime", "factor", "printexpr", 
-                             "charexpr", "epsilon", "terminal").contains(symbol);
+        return parseTable.containsKey(symbol);
     }
-
-
-    private static void applyRule(String nonTerminal, TreeNode parent) throws SyntaxException {
-        switch (nonTerminal) {
-            case "prog":
-                expectToken(Token.TokenType.PUBLIC, parent);
-                expectToken(Token.TokenType.CLASS, parent);
-                expectToken(Token.TokenType.ID, parent); // ID for class name
-                expectToken(Token.TokenType.LBRACE, parent);
-                expectToken(Token.TokenType.PUBLIC, parent);
-                expectToken(Token.TokenType.STATIC, parent);
-                expectToken(Token.TokenType.VOID, parent);
-                expectToken(Token.TokenType.MAIN, parent);
-                expectToken(Token.TokenType.LPAREN, parent);
-                expectToken(Token.TokenType.STRINGARR, parent); // 'String[]'
-                expectToken(Token.TokenType.ARGS, parent); // 'args'
-                expectToken(Token.TokenType.RPAREN, parent);
-                expectToken(Token.TokenType.LBRACE, parent);
-                parseStack.push(new Pair<>("los", parent));
-
-		// error is happening here (using sample input in Runner.java)
-                expectToken(Token.TokenType.RBRACE, parent);
-                expectToken(Token.TokenType.RBRACE, parent);
-                break;
-
-            case "los":
-                // System.out.println("HI");
-                parseStack.push(new Pair<>("stat", parent));
-                parseStack.push(new Pair<>("los", parent)); // Allows for multiple statements
-                break;
-
-            case "stat":
-                // Handle different types of statements
-                parseStack.push(new Pair<>("decl", parent));  // Variable declaration
-                parseStack.push(new Pair<>("assign", parent)); // Variable assignment
-                parseStack.push(new Pair<>("print", parent)); 
-                parseStack.push(new Pair<>("ifstat", parent));
-                parseStack.push(new Pair<>("whilestat", parent));
-                parseStack.push(new Pair<>("forstat", parent));
-                parseStack.push(new Pair<>("epsilon", parent)); // Represents a standalone semicolon
-                break;
-
-            case "whilestat":
-                expectToken(Token.TokenType.WHILE, parent);
-                expectToken(Token.TokenType.LPAREN, parent);
-                parseStack.push(new Pair<>("boolexpr", parent));
-                expectToken(Token.TokenType.RPAREN, parent);
-                expectToken(Token.TokenType.LBRACE, parent);
-                parseStack.push(new Pair<>("los", parent));
-                expectToken(Token.TokenType.RBRACE, parent);
-                break;
-
-            case "forstat":
-                expectToken(Token.TokenType.FOR, parent);
-                expectToken(Token.TokenType.LPAREN, parent);
-                parseStack.push(new Pair<>("forstart", parent));
-                expectToken(Token.TokenType.SEMICOLON, parent);
-                parseStack.push(new Pair<>("boolexpr", parent));
-                expectToken(Token.TokenType.SEMICOLON, parent);
-                parseStack.push(new Pair<>("forarith", parent));
-                expectToken(Token.TokenType.RPAREN, parent);
-                expectToken(Token.TokenType.LBRACE, parent);
-                parseStack.push(new Pair<>("los", parent));
-                expectToken(Token.TokenType.RBRACE, parent);
-                break;
-
-            case "forstart":
-                parseStack.push(new Pair<>("decl", parent)); // Variable declaration
-                // Or process an assignment or ε (empty)
-                parseStack.push(new Pair<>("assign", parent));
-                break;
-
-            case "forarith":
-                parseStack.push(new Pair<>("arithexpr", parent));
-                break;
-
-            case "ifstat":
-                expectToken(Token.TokenType.IF, parent);
-                expectToken(Token.TokenType.LPAREN, parent);
-                parseStack.push(new Pair<>("boolexpr", parent));
-                expectToken(Token.TokenType.RPAREN, parent);
-                expectToken(Token.TokenType.LBRACE, parent);
-                parseStack.push(new Pair<>("los", parent));
-                expectToken(Token.TokenType.RBRACE, parent);
-                parseStack.push(new Pair<>("elseifstat", parent));
-                break;
-
-            case "elseifstat":
-                parseStack.push(new Pair<>("elseorelseif", parent));
-                break;
-
-            case "elseorelseif":
-                expectToken(Token.TokenType.ELSE, parent);
-                parseStack.push(new Pair<>("possif", parent));
-                break;
-
-            case "possif":
-                expectToken(Token.TokenType.IF, parent);
-                expectToken(Token.TokenType.LPAREN, parent);
-                parseStack.push(new Pair<>("boolexpr", parent));
-                expectToken(Token.TokenType.RPAREN, parent);
-                expectToken(Token.TokenType.LBRACE, parent);
-                parseStack.push(new Pair<>("los", parent));
-                expectToken(Token.TokenType.RBRACE, parent);
-                break;
-
-            case "assign":
-                expectToken(Token.TokenType.ID, parent); // Variable name
-                expectToken(Token.TokenType.ASSIGN, parent);
-                parseStack.push(new Pair<>("expr", parent));
-                expectToken(Token.TokenType.SEMICOLON, parent);
-                break;
-
-            case "decl":
-                parseStack.push(new Pair<>("type", parent)); // Variable type
-                expectToken(Token.TokenType.ID, parent); // Variable name
-                parseStack.push(new Pair<>("possassign", parent));
-                expectToken(Token.TokenType.SEMICOLON, parent);
-                break;
-
-            case "possassign":
-                parseStack.push(new Pair<>("assign", parent)); // Check for assignment
-                break;
-
-            case "print":
-                expectToken(Token.TokenType.PRINT, parent);
-                expectToken(Token.TokenType.LPAREN, parent);
-                parseStack.push(new Pair<>("printexpr", parent));
-                expectToken(Token.TokenType.RPAREN, parent);
-                expectToken(Token.TokenType.SEMICOLON, parent);
-                break;
-
-            case "type":
-                expectToken(Token.TokenType.TYPE, parent);
-                break;
-
-            case "expr":
-                parseStack.push(new Pair<>("relexpr", parent));
-                break;
-
-            case "boolexpr":
-                parseStack.push(new Pair<>("boolop", parent));
-                parseStack.push(new Pair<>("relexpr", parent));
-                break;
-
-            case "relexpr":
-                parseStack.push(new Pair<>("arithexpr", parent));
-                parseStack.push(new Pair<>("relexprprime", parent));
-                break;
-
-            case "relexprprime":
-                parseStack.push(new Pair<>("relop", parent));
-                parseStack.push(new Pair<>("arithexpr", parent));
-                break;
-
-            case "relop":
-                expectToken(Token.TokenType.EQUAL, parent); // == operator
-                parseStack.push(new Pair<>("boolop", parent));
-                break;
-
-            case "arithexpr":
-                parseStack.push(new Pair<>("term", parent));
-                parseStack.push(new Pair<>("arithexprprime", parent));
-                break;
-
-            case "arithexprprime":
-                expectToken(Token.TokenType.PLUS, parent);
-                expectToken(Token.TokenType.MINUS, parent);
-                parseStack.push(new Pair<>("term", parent));
-                parseStack.push(new Pair<>("arithexprprime", parent));
-                break;
-
-            case "term":
-                parseStack.push(new Pair<>("factor", parent));
-                parseStack.push(new Pair<>("termprime", parent));
-                break;
-
-            case "termprime":
-                expectToken(Token.TokenType.TIMES, parent);
-                expectToken(Token.TokenType.DIVIDE, parent);
-                expectToken(Token.TokenType.MOD, parent);
-                parseStack.push(new Pair<>("factor", parent));
-                parseStack.push(new Pair<>("termprime", parent));
-                break;
-
-            case "factor":
-                expectToken(Token.TokenType.LPAREN, parent);
-                parseStack.push(new Pair<>("arithexpr", parent));
-                expectToken(Token.TokenType.RPAREN, parent);
-                parseStack.push(new Pair<>("ID", parent));
-                parseStack.push(new Pair<>("NUM", parent)); // For numeric literals
-                break;
-
-            case "printexpr":
-                parseStack.push(new Pair<>("relexpr", parent));
-                expectToken(Token.TokenType.STRINGLIT, parent); // For string literals
-                break;
-
-            default:
-                throw new SyntaxException("Unknown non-terminal: " + nonTerminal);
-        }
-    }
-
 
     private static void matchTerminal(String terminal) throws SyntaxException {
         if (currentToken.getType().name().equals(terminal)) {
@@ -268,43 +158,40 @@ public class SyntacticAnalyser {
     }
 }
 
-// The following class may be helpful.
-
+// Helper Pair class remains unchanged
 class Pair<A, B> {
-	private final A a;
-	private final B b;
+    private final A a;
+    private final B b;
 
-	public Pair(A a, B b) {
-		this.a = a;
-		this.b = b;
-	}
+    public Pair(A a, B b) {
+        this.a = a;
+        this.b = b;
+    }
 
-	public A fst() {
-		return a;
-	}
+    public A fst() {
+        return a;
+    }
 
-	public B snd() {
-		return b;
-	}
+    public B snd() {
+        return b;
+    }
 
-	@Override
-	public int hashCode() {
-		return 3 * a.hashCode() + 7 * b.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return 3 * a.hashCode() + 7 * b.hashCode();
+    }
 
-	@Override
-	public String toString() {
-		return "{" + a + ", " + b + "}";
-	}
+    @Override
+    public String toString() {
+        return "{" + a + ", " + b + "}";
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if ((o instanceof Pair<?, ?>)) {
-			Pair<?, ?> other = (Pair<?, ?>) o;
-			return other.fst().equals(a) && other.snd().equals(b);
-		}
-
-		return false;
-	}
-
+    @Override
+    public boolean equals(Object o) {
+        if ((o instanceof Pair<?, ?>)) {
+            Pair<?, ?> other = (Pair<?, ?>) o;
+            return other.fst().equals(a) && other.snd().equals(b);
+        }
+        return false;
+    }
 }
