@@ -58,6 +58,8 @@ public class SyntacticAnalyser {
                 expectToken(Token.TokenType.RPAREN, parent);
                 expectToken(Token.TokenType.LBRACE, parent);
                 parseStack.push(new Pair<>("los", parent));
+
+		// error is happening here (using sample input in Runner.java)
                 expectToken(Token.TokenType.RBRACE, parent);
                 expectToken(Token.TokenType.RBRACE, parent);
                 break;
