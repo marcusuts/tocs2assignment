@@ -17,6 +17,7 @@ public class SyntacticAnalyser {
 
     static {
         parsingTable.put(new Pair<>("prog", Token.TokenType.PUBLIC), new String[]{"PUBLIC", "CLASS", "ID", "LBRACE", "PUBLIC", "STATIC", "VOID", "MAIN", "LPAREN", "STRINGARR", "ARGS", "RPAREN", "LBRACE", "los", "RBRACE", "RBRACE"});
+        
         parsingTable.put(new Pair<>("los", Token.TokenType.WHILE), new String[]{"stat", "los"});
         parsingTable.put(new Pair<>("los", Token.TokenType.FOR), new String[]{"stat", "los"});
         parsingTable.put(new Pair<>("los", Token.TokenType.IF), new String[]{"stat", "los"});
@@ -33,12 +34,12 @@ public class SyntacticAnalyser {
         parsingTable.put(new Pair<>("stat", Token.TokenType.FOR), new String[]{"FOR"});
         parsingTable.put(new Pair<>("stat", Token.TokenType.IF), new String[]{"ifstat"});
         parsingTable.put(new Pair<>("stat", Token.TokenType.ID), new String[]{"assign", "SEMICOLON"});
-        parsingTable.put(new Pair<>("stat", Token.TokenType.RBRACE), new String[]{"WHILE", "FOR", "ifstat", "assign", "decl", "print", "SEMICOLON"});
+        // parsingTable.put(new Pair<>("stat", Token.TokenType.RBRACE), new String[]{"WHILE", "FOR", "ifstat", "assign", "decl", "print", "SEMICOLON"});
         parsingTable.put(new Pair<>("stat", Token.TokenType.SEMICOLON), new String[]{"SEMICOLON"});
 
         parsingTable.put(new Pair<>("while", Token.TokenType.WHILE), new String[]{"WHILE", "LPAREN", "relexpr", "boolexpr", "RPAREN", "LBRACE", "los", "RBRACE"});
 
-        parsingTable.put(new Pair<>("for", Token.TokenType.FOR), new String[]{"FOR", "LPAREN", "forstart", "SEMICOLON", "relexpr", "boolexpr", "SEMICOLON", "forarith", "RPAREN", "LBRACE", "los", "RBRACE"});
+        parsingTable.put(new Pair<>("forstat", Token.TokenType.FOR), new String[]{"for", "LPAREN", "FORSTART", "SEMICOLON", "relexpr", "boolexpr", "SEMICOLON", "forarith", "RPAREN", "LBRACE", "los", "RBRACE"});
 
         parsingTable.put(new Pair<>("forstart", Token.TokenType.TYPE), new String[]{"decl"});
         parsingTable.put(new Pair<>("forstart", Token.TokenType.ID), new String[]{"assign"});
@@ -85,8 +86,9 @@ public class SyntacticAnalyser {
         parsingTable.put(new Pair<>("expr", Token.TokenType.FALSE), new String[]{"relexpr", "boolexpr"});
         parsingTable.put(new Pair<>("expr", Token.TokenType.NUM), new String[]{"relexpr", "boolexpr"});
         parsingTable.put(new Pair<>("expr", Token.TokenType.LPAREN), new String[]{"relexpr", "boolexpr"});
+        parsingTable.put(new Pair<>("expr", Token.TokenType.SQUOTE), new String[]{"charexpr"});
 
-        parsingTable.put(new Pair<>("charexpr", Token.TokenType.SQUOTE), new String[]{"' char '"});
+        parsingTable.put(new Pair<>("charexpr", Token.TokenType.SQUOTE), new String[]{"SQUOTE", "CHARLIT", "SQUOTE"});
 
         parsingTable.put(new Pair<>("boolexpr", Token.TokenType.EQUAL), new String[]{"boolop", "relexpr", "boolexpr"});
         parsingTable.put(new Pair<>("boolexpr", Token.TokenType.NEQUAL), new String[]{"boolop", "relexpr", "boolexpr"});
@@ -189,7 +191,7 @@ public class SyntacticAnalyser {
 
         ParseTree parseTree = new ParseTree();
         TreeNode progNode = new TreeNode(TreeNode.Label.prog, null); // Create the root node
-        // parseTree.setRoot(progNode);
+        parseTree.setRoot(progNode);
         parentStack.push(progNode); // Add root to the parent stack
         stack.push(new Pair<>("prog", progNode)); // Push the start symbol onto the stack
 
@@ -254,7 +256,7 @@ public class SyntacticAnalyser {
 
             // After processing a terminal or non-terminal, pop the parent stack if the current node is fully processed
             if (!stack.isEmpty() && stack.peek().fst().equals("ε")) {
-                // parentStack.pop(); // Pop the parent stack after handling epsilon
+                parentStack.pop(); // Pop the parent stack after handling epsilon
             }
         }
 
