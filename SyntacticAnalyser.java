@@ -29,16 +29,16 @@ public class SyntacticAnalyser {
 
         parsingTable.put(new Pair<>("stat", Token.TokenType.TYPE), new String[]{"decl", "SEMICOLON"});
         parsingTable.put(new Pair<>("stat", Token.TokenType.PRINT), new String[]{"print"});
-        parsingTable.put(new Pair<>("stat", Token.TokenType.WHILE), new String[]{"while"});
-        parsingTable.put(new Pair<>("stat", Token.TokenType.FOR), new String[]{"for"});
+        parsingTable.put(new Pair<>("stat", Token.TokenType.WHILE), new String[]{"WHILE"});
+        parsingTable.put(new Pair<>("stat", Token.TokenType.FOR), new String[]{"FOR"});
         parsingTable.put(new Pair<>("stat", Token.TokenType.IF), new String[]{"ifstat"});
         parsingTable.put(new Pair<>("stat", Token.TokenType.ID), new String[]{"assign", "SEMICOLON"});
-        parsingTable.put(new Pair<>("stat", Token.TokenType.RBRACE), new String[]{"while", "for", "ifstat", "assign", "decl", "print", "SEMICOLON"});
+        parsingTable.put(new Pair<>("stat", Token.TokenType.RBRACE), new String[]{"WHILE", "FOR", "ifstat", "assign", "decl", "print", "SEMICOLON"});
         parsingTable.put(new Pair<>("stat", Token.TokenType.SEMICOLON), new String[]{"SEMICOLON"});
 
-        parsingTable.put(new Pair<>("while", Token.TokenType.WHILE), new String[]{"while", "(", "relexpr", "boolexpr", ")", "{", "los", "}"});
+        parsingTable.put(new Pair<>("while", Token.TokenType.WHILE), new String[]{"WHILE", "LPAREN", "relexpr", "boolexpr", "RPAREN", "LBRACE", "los", "RBRACE"});
 
-        parsingTable.put(new Pair<>("for", Token.TokenType.FOR), new String[]{"for", "(", "forstart", "SEMICOLON", "relexpr", "boolexpr", "SEMICOLON", "forarith", ")", "{", "los", "}"});
+        parsingTable.put(new Pair<>("for", Token.TokenType.FOR), new String[]{"FOR", "LPAREN", "forstart", "SEMICOLON", "relexpr", "boolexpr", "SEMICOLON", "forarith", "RPAREN", "LBRACE", "los", "RBRACE"});
 
         parsingTable.put(new Pair<>("forstart", Token.TokenType.TYPE), new String[]{"decl"});
         parsingTable.put(new Pair<>("forstart", Token.TokenType.ID), new String[]{"assign"});
@@ -68,7 +68,7 @@ public class SyntacticAnalyser {
         parsingTable.put(new Pair<>("possif", Token.TokenType.LBRACE), new String[]{"ε"});
         // parsingTable.put(new Pair<>("possif", Token.TokenType.EOF), new String[]{"ε"});
 
-        parsingTable.put(new Pair<>("assign", Token.TokenType.ID), new String[]{"ID", "ASSIGN", "expr"});
+        parsingTable.put(new Pair<>("assign", Token.TokenType.ID), new String[]{"ID", "assign", "expr"});
 
         parsingTable.put(new Pair<>("decl", Token.TokenType.TYPE), new String[]{"type", "ID", "possassign"});
 
@@ -109,8 +109,8 @@ public class SyntacticAnalyser {
 
         parsingTable.put(new Pair<>("relexpr", Token.TokenType.LPAREN), new String[]{"arithexpr", "relexprprime"});
         parsingTable.put(new Pair<>("relexpr", Token.TokenType.ID), new String[]{"arithexpr", "relexprprime"});
-        parsingTable.put(new Pair<>("relexpr", Token.TokenType.TRUE), new String[]{"true"});
-        parsingTable.put(new Pair<>("relexpr", Token.TokenType.FALSE), new String[]{"false"});
+        parsingTable.put(new Pair<>("relexpr", Token.TokenType.TRUE), new String[]{"TRUE"});
+        parsingTable.put(new Pair<>("relexpr", Token.TokenType.FALSE), new String[]{"FALSE"});
         parsingTable.put(new Pair<>("relexpr", Token.TokenType.NUM), new String[]{"arithexpr", "relexprprime"});
 
         parsingTable.put(new Pair<>("relexprprime", Token.TokenType.EQUAL), new String[]{"ε"});
@@ -182,74 +182,93 @@ public class SyntacticAnalyser {
         parsingTable.put(new Pair<>("printexpr", Token.TokenType.NUM), new String[]{"relexpr", "boolexpr"});
         parsingTable.put(new Pair<>("printexpr", Token.TokenType.LPAREN), new String[]{"relexpr", "boolexpr"});
     }
+ 
+    public static ParseTree parse(List<Token> tokens) throws SyntaxException {
+        Deque<Pair<String, TreeNode>> stack = new ArrayDeque<>();
+        Deque<TreeNode> parentStack = new ArrayDeque<>();
 
-	public static ParseTree parse(List<Token> tokens) throws SyntaxException {
-		Deque<Pair<String, TreeNode>> stack = new ArrayDeque<>();
-		Deque<TreeNode> parentStack = new ArrayDeque<>();
+        ParseTree parseTree = new ParseTree();
+        TreeNode progNode = new TreeNode(TreeNode.Label.prog, null); // Create the root node
+        // parseTree.setRoot(progNode);
+        parentStack.push(progNode); // Add root to the parent stack
+        stack.push(new Pair<>("prog", progNode)); // Push the start symbol onto the stack
 
-		ParseTree parseTree = new ParseTree();
-		TreeNode progNode = new TreeNode(TreeNode.Label.prog, null); // Create the root node
-		parseTree.setRoot(progNode);
-		parentStack.push(progNode); // Add root to the parent stack
-		stack.push(new Pair<>("prog", progNode)); // Push the start symbol onto the stack
+        int i = 0; // Index for tokens
+        while (i < tokens.size()) {
+            // Pair<String, TreeNode> top = stack.pop(); // Pop the top of the stack
+            TreeNode currentParent = parentStack.peek(); // Get the current parent node from parent stack
+            Token currentToken = tokens.get(i); // Get current token
 
-		int i = 0; // Index for tokens
-		while (!stack.isEmpty() && i < tokens.size()) {
-			Pair<String, TreeNode> top = stack.pop(); // Pop the top of the stack
-			TreeNode currentParent = parentStack.peek(); // Get the current parent node from parent stack
-			Token currentToken = tokens.get(i); // Get current token
+            System.out.println("\n---- Debugging Information ----");
+            System.out.println("Current token: " + currentToken);
+            System.out.println("Current stack top: " + stack.peek().fst());
+            System.out.println("Current parent node: " + currentParent.getLabel());
+            System.out.println("Parent stack: " + parentStack);
+            System.out.println("Tokens left: " + (tokens.size() - i));
+            System.out.println("------------------------------");
 
-			// Skip ε (epsilon) productions
-			if (top.fst().equals("ε")) {
-				TreeNode epsilonNode = new TreeNode(TreeNode.Label.epsilon, currentParent); // Create epsilon node
-				currentParent.addChild(epsilonNode); // Add epsilon node to the current parent
-				parentStack.pop(); // Pop the parent stack after handling epsilon
-				continue; // Skip epsilon productions
-			}
+            if (isNonTerminal(stack.peek().fst())) {  // Non-terminal
+                parentStack.push(stack.peek().snd()); // Push the new non-terminal node to parent stack
+                // System.out.println(stack.peek().fst());
+                if(parseTree.getRoot() == null) {
+                    parseTree.setRoot(currentParent);
+                }
+                else if(!stack.peek().fst().equals("epsilon")) {
+                    TreeNode epsilonNode = new TreeNode(TreeNode.Label.valueOf(stack.peek().fst()), stack.peek().snd()); // Create epsilon node
+                    stack.peek().snd().addChild(epsilonNode);
+                    parentStack.push(epsilonNode);  
+                }
+                // Expand the non-terminal according to the parsing table
 
-			if (isNonTerminal(top.fst())) {  // Non-terminal
-				if (parsingTable.containsKey(new Pair<>(top.fst(), currentToken.getType()))) {
-					// Expand the non-terminal according to the parsing table
-					String[] production = parsingTable.get(new Pair<>(top.fst(), currentToken.getType()));
+                if (parsingTable.containsKey(new Pair<>(stack.peek().fst(), currentToken.getType()))) {
+                    // Get the production rule
+                    String[] production = parsingTable.get(new Pair<>(stack.peek().fst(), currentToken.getType()));
+                    // Create a non-terminal node for the parse tree
+                    TreeNode nonTerminalNode = new TreeNode(TreeNode.Label.valueOf(stack.peek().fst()), parentStack.peek());
+                    stack.pop(); // Remove the non-terminal from the stack
+                    currentParent.addChild(nonTerminalNode); // Add it to the current parent
 
-					TreeNode nonTerminalNode = new TreeNode(TreeNode.Label.valueOf(top.fst()), currentParent); // Create a new non-terminal node
-					currentParent.addChild(nonTerminalNode);
-					parentStack.push(nonTerminalNode); // Push the new non-terminal node to parent stack
+                    for (int j = production.length - 1; j >= 0; j--) {
+                        stack.push(new Pair<>(production[j], nonTerminalNode));
+                    }
+                } else {
+                    throw new SyntaxException("No production rule for: " + stack.peek().fst() + " with token " + currentToken);
+                }
 
-					// Push production onto the stack in reverse order
-					for (int j = production.length - 1; j >= 0; j--) {
-						stack.push(new Pair<>(production[j], nonTerminalNode));
-					}
-				} else {
-					throw new SyntaxException("No production rule for: " + top.fst() + " with token " + currentToken);
-				}
-			} else {  // Terminal
-				// Check if the top of the stack is a terminal and matches the current token
-				if (top.fst().equals(currentToken.getType().toString())) {
-					// Match terminal
-					TreeNode terminalNode = new TreeNode(TreeNode.Label.terminal, currentToken, currentParent);
-					currentParent.addChild(terminalNode); // Add terminal node to the parse tree
-					i++; // Advance to the next token
-				} else {
-					throw new SyntaxException("Unexpected token: " + currentToken);
-				}
-			}
+                if(stack.peek().fst().equals("ε")) {
+                    TreeNode epsilonNode = new TreeNode(TreeNode.Label.epsilon, stack.peek().snd()); // Create epsilon node
+                    stack.pop().snd().addChild(epsilonNode);
+                }
+            } else {  // Terminal
+                // Check if the top of the stack is a terminal and matches the current token
+                if (stack.peek().fst().equals(currentToken.getType().toString())) {
+                    // Match terminal
+                    TreeNode terminalNode = new TreeNode(TreeNode.Label.terminal, currentToken, stack.pop().snd());
+                    currentParent.addChild(terminalNode); // Add terminal node to the parse tree
+                    i++; // Advance to the next token
+                } else {
+					System.out.println("Stack mismatch: expected " + stack.peek().fst() + ", but got " + currentToken);
+                    throw new SyntaxException("Unexpected token: " + currentToken);
+                }
+            }
 
-			// After processing a terminal or non-terminal, pop the parent stack if the current node is fully processed
-			if (!stack.isEmpty() && stack.peek().fst().equals("ε")) {
-				parentStack.pop(); // Pop the parent stack after handling epsilon
-			}
-		}
+            // After processing a terminal or non-terminal, pop the parent stack if the current node is fully processed
+            if (!stack.isEmpty() && stack.peek().fst().equals("ε")) {
+                // parentStack.pop(); // Pop the parent stack after handling epsilon
+            }
+        }
 
-		if (i < tokens.size()) {
-			throw new SyntaxException("Input not fully consumed");
-		}
-		if (!stack.isEmpty()) {
-			throw new SyntaxException("Stack not empty after processing");
-		}
+        if (i < tokens.size()) {
+            throw new SyntaxException("Input not fully consumed");
+        }
+        if (!stack.isEmpty()) {
+            throw new SyntaxException("Stack not empty after processing");
+        }
 
-		return parseTree; // Return the constructed parse tree
-	}
+        return parseTree; // Return the constructed parse tree
+    }
+
+
 
     private static boolean isTerminal(String symbol) {
         // Check if the symbol is a terminal token type
